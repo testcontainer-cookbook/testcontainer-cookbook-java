@@ -1,6 +1,7 @@
 package com.example.mockserver;
 
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockserver.client.MockServerClient;
@@ -35,6 +36,9 @@ public class MockServerTest {
 
     @Autowired
     private Client client;
+
+    @Autowired
+    private HelloController helloController;
     static DockerImageName mockServerImage = DockerImageName.parse("mockserver/mockserver:5.15.0");
 
     @Container
@@ -64,8 +68,10 @@ public class MockServerTest {
 
             // ...a GET request to '/person?name=peter' returns "Peter the person!"
 
-            String s = client.get("foo");
-            System.out.println(s);
+
+            helloController.foo();
+
+            Assertions.assertEquals("Hello World!", s);
         }
 
 
