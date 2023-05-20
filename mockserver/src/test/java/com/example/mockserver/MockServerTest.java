@@ -4,10 +4,16 @@ package com.example.mockserver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockserver.client.MockServerClient;
+import org.mockserver.model.MediaType;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cloud.client.loadbalancer.LoadBalancerAutoConfiguration;
+import org.springframework.cloud.loadbalancer.annotation.LoadBalancerClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.cloud.openfeign.FeignAutoConfiguration;
+import org.springframework.cloud.openfeign.loadbalancer.FeignLoadBalancerAutoConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -16,26 +22,24 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
 
 @ExtendWith(SpringExtension.class)
-@SpringBootTest(classes = MockserverApplication.class)
+@EnableConfigurationProperties
+@EnableFeignClients(basePackages = {"com.example.mockserver"})
+@ImportAutoConfiguration({FeignAutoConfiguration.class, LoadBalancerAutoConfiguration.class, FeignLoadBalancerAutoConfiguration.class, HttpMessageConvertersAutoConfiguration.class})
+@LoadBalancerClient(name = "fooClient", configuration = TestBean.class)
 @Testcontainers
 public class MockServerTest {
 
     @Autowired
     private Client client;
-    static DockerImageName mockServerImage = DockerImageName.parse("jamesdbloom/mockserver:mockserver-5.11.2");
+    static DockerImageName mockServerImage = DockerImageName.parse("mockserver/mockserver:5.15.0");
 
     @Container
-    private static final MockServerContainer mockServerContainer = new MockServerContainer(mockServerImage);
+    protected static final MockServerContainer mockServerContainer = new MockServerContainer(mockServerImage);
 
-    static {
-
-
-    }
     @Test
     void test() {
 
@@ -44,12 +48,14 @@ public class MockServerTest {
             mockServerClient.when(
                     request()
                             .withMethod("GET")
-                            .withPathParameter("name", "foo")
+                            .withQueryStringParameter("name", "foo")
                             .withPath("/foo")
+                            .withContentType(MediaType.APPLICATION_JSON)
             ).respond(
                     response()
                             .withStatusCode(200)
                             .withBody("Hello World!")
+                            .withContentType(MediaType.APPLICATION_JSON)
             );
 
             mockServerClient
@@ -67,12 +73,9 @@ public class MockServerTest {
 
 
     @DynamicPropertySource
-    static void properties(DynamicPropertyRegistry registry) {
-//        registry.add("fooClient", () -> "http://localhost:" + mockServerContainer.getServerPort());
-        registry.add("foo-client.url", () -> "localhost:" + mockServerContainer.getServerPort());
+    static void set(DynamicPropertyRegistry registry) {
+        registry.add("fooClient.url", () -> "localhost:" + mockServerContainer.getServerPort());
     }
-
-
 
 
 }
